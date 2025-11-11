@@ -30,6 +30,7 @@ from sgl_kernel.elementwise import (
     gelu_tanh_and_mul,
     gemma_fused_add_rmsnorm,
     gemma_rmsnorm,
+    scale_residual_layernorm_scale_shift,
     rmsnorm,
     silu_and_mul,
 )

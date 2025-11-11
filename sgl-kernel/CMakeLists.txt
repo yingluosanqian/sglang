@@ -318,6 +318,9 @@ set(SOURCES
     "csrc/grammar/apply_token_bitmask_inplace_cuda.cu"
 
     "csrc/kvcacheio/transfer.cu"
+
+    "csrc/layernorm/scale_residual_layernorm_scale_shift.cu"
+    
     "csrc/mamba/causal_conv1d.cu"
     "csrc/memory/store.cu"
     "csrc/memory/weak_ref_tensor.cpp"

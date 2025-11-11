@@ -199,6 +199,39 @@ def gelu_tanh_and_mul(input: torch.Tensor, out: torch.Tensor = None) -> torch.Te
     return out
 
 
+def scale_residual_layernorm_scale_shift(
+    residual: torch.Tensor,
+    x: torch.Tensor,
+    gate: torch.Tensor | None,
+    shift: torch.Tensor,
+    scale: torch.Tensor,
+    *,
+    norm_weight: torch.Tensor | None = None,
+    norm_bias: torch.Tensor | None = None,
+    eps: float = 1e-6,
+    norm_type: str = "rms",
+    force_fp32_norm: bool = True,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Apply gated residual, normalization, and affine scale/shift via fused kernel."""
+    norm_type = norm_type.lower()
+    if norm_type not in {"rms", "layer"}:
+        raise ValueError(f"norm_type must be 'rms' or 'layer', got {norm_type}")
+    is_rms = norm_type == "rms"
+    modulated, residual_out = torch.ops.sgl_kernel.scale_residual_layernorm_scale_shift(
+        residual,
+        x,
+        gate,
+        norm_weight,
+        norm_bias,
+        shift,
+        scale,
+        eps,
+        is_rms,
+        force_fp32_norm,
+    )
+    return modulated, residual_out
+
+
 def gelu_and_mul(input: torch.Tensor, out: torch.Tensor = None) -> torch.Tensor:
     if input.shape[-1] * input.dtype.itemsize % 16 != 0:
         raise ValueError("The pointers must be multiple of 16 bytes.")

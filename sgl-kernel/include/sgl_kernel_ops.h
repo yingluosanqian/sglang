@@ -143,6 +143,18 @@ void silu_and_mul(at::Tensor& out, at::Tensor& input);
 void gelu_tanh_and_mul(at::Tensor& out, at::Tensor& input);
 void gelu_and_mul(at::Tensor& out, at::Tensor& input);
 
+std::tuple<at::Tensor, at::Tensor> scale_residual_layernorm_scale_shift(
+    const at::Tensor& residual,
+    const at::Tensor& x,
+    const c10::optional<at::Tensor>& gate,
+    const c10::optional<at::Tensor>& norm_weight,
+    const c10::optional<at::Tensor>& norm_bias,
+    const at::Tensor& shift,
+    const at::Tensor& scale,
+    double eps,
+    bool is_rms_norm,
+    bool force_fp32_norm);
+
 void apply_rope_pos_ids_cos_sin_cache(
     at::Tensor q,
     at::Tensor k,
