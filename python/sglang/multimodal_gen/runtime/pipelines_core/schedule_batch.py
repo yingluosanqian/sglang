@@ -188,7 +188,7 @@ class Req:
     perf_dump_path: str | None = None
 
     # results
-    output: torch.Tensor | None = None
+    output: torch.Tensor | list[str] | None = None
 
     @property
     def batch_size(self):

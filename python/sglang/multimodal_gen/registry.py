@@ -18,6 +18,7 @@ from sglang.multimodal_gen.configs.pipeline_configs import (
     FastHunyuanConfig,
     FluxPipelineConfig,
     HunyuanConfig,
+    Hunyuan3DPipelineConfig,
     WanI2V480PConfig,
     WanI2V720PConfig,
     WanT2V480PConfig,
@@ -46,6 +47,7 @@ from sglang.multimodal_gen.configs.sample.hunyuan import (
     FastHunyuanSamplingParam,
     HunyuanSamplingParams,
 )
+from sglang.multimodal_gen.configs.sample.sampling_params import SamplingParams
 from sglang.multimodal_gen.configs.sample.qwenimage import (
     QwenImage2512SamplingParams,
     QwenImageEditPlusSamplingParams,
@@ -124,6 +126,7 @@ class ConfigInfo:
 
     sampling_param_cls: Any
     pipeline_config_cls: Type[PipelineConfig]
+    pipeline_cls: Type[ComposedPipelineBase] | None = None
 
 
 # The central registry mapping a model name to its configuration information
@@ -139,6 +142,7 @@ _MODEL_NAME_DETECTORS: List[Tuple[str, Callable[[str], bool]]] = []
 def register_configs(
     sampling_param_cls: Any,
     pipeline_config_cls: Type[PipelineConfig],
+    pipeline_cls: Type[ComposedPipelineBase] | None = None,
     hf_model_paths: Optional[List[str]] = None,
     model_detectors: Optional[List[Callable[[str], bool]]] = None,
 ):
@@ -150,6 +154,7 @@ def register_configs(
     _CONFIG_REGISTRY[model_id] = ConfigInfo(
         sampling_param_cls=sampling_param_cls,
         pipeline_config_cls=pipeline_config_cls,
+        pipeline_cls=pipeline_cls,
     )
     if hf_model_paths:
         for path in hf_model_paths:
@@ -250,31 +255,13 @@ def get_model_info(model_path: str) -> Optional[ModelInfo]:
     # 1. Discover all available pipeline classes and cache them
     _discover_and_register_pipelines()
 
-    # 2. Get pipeline class from model's model_index.json
+    # 2. Get configuration classes (sampling, pipeline config)
     try:
-        if os.path.exists(model_path):
-            config = verify_model_config_and_directory(model_path)
-        else:
-            config = maybe_download_model_index(model_path)
+        config_info = _get_config_info(model_path)
     except Exception as e:
-        logger.error(f"Could not read model config for '{model_path}': {e}")
+        logger.error(f"Could not resolve configuration for '{model_path}': {e}")
         return None
 
-    pipeline_class_name = config.get("_class_name")
-    if not pipeline_class_name:
-        logger.error(f"'_class_name' not found in model_index.json for '{model_path}'")
-        return None
-
-    pipeline_cls = _PIPELINE_REGISTRY.get(pipeline_class_name)
-    if not pipeline_cls:
-        logger.error(
-            f"Pipeline class '{pipeline_class_name}' specified in '{model_path}' is not a registered EntryClass in the framework. "
-            f"Available pipelines: {list(_PIPELINE_REGISTRY.keys())}"
-        )
-        return None
-
-    # 3. Get configuration classes (sampling, pipeline config)
-    config_info = _get_config_info(model_path)
     if not config_info:
         logger.error(
             f"Could not resolve configuration for model '{model_path}'. "
@@ -282,6 +269,34 @@ def get_model_info(model_path: str) -> Optional[ModelInfo]:
             f"Known model paths: {list(_MODEL_HF_PATH_TO_NAME.keys())}"
         )
         return None
+
+    if config_info.pipeline_cls is not None:
+        pipeline_cls = config_info.pipeline_cls
+    else:
+        # 3. Get pipeline class from model's model_index.json
+        try:
+            if os.path.exists(model_path):
+                config = verify_model_config_and_directory(model_path)
+            else:
+                config = maybe_download_model_index(model_path)
+        except Exception as e:
+            logger.error(f"Could not read model config for '{model_path}': {e}")
+            return None
+
+        pipeline_class_name = config.get("_class_name")
+        if not pipeline_class_name:
+            logger.error(
+                f"'_class_name' not found in model_index.json for '{model_path}'"
+            )
+            return None
+
+        pipeline_cls = _PIPELINE_REGISTRY.get(pipeline_class_name)
+        if not pipeline_cls:
+            logger.error(
+                f"Pipeline class '{pipeline_class_name}' specified in '{model_path}' is not a registered EntryClass in the framework. "
+                f"Available pipelines: {list(_PIPELINE_REGISTRY.keys())}"
+            )
+            return None
 
     # 4. Combine the complete model info
     model_info = ModelInfo(
@@ -303,7 +318,7 @@ def _register_configs():
         hf_model_paths=[
             "hunyuanvideo-community/HunyuanVideo",
         ],
-        model_detectors=[lambda hf_id: "hunyuan" in hf_id.lower()],
+        model_detectors=[lambda hf_id: "hunyuanvideo" in hf_id.lower()],
     )
     register_configs(
         sampling_param_cls=FastHunyuanSamplingParam,
@@ -311,6 +326,18 @@ def _register_configs():
         hf_model_paths=[
             "FastVideo/FastHunyuan-diffusers",
         ],
+    )
+
+    from sglang.multimodal_gen.runtime.pipelines.hunyuan3d_pipeline import (
+        Hunyuan3DPipeline,
+    )
+
+    register_configs(
+        sampling_param_cls=SamplingParams,
+        pipeline_config_cls=Hunyuan3DPipelineConfig,
+        pipeline_cls=Hunyuan3DPipeline,
+        hf_model_paths=["tencent/Hunyuan3D-2.1"],
+        model_detectors=[lambda hf_id: "hunyuan3d" in hf_id.lower()],
     )
 
     # Wan
