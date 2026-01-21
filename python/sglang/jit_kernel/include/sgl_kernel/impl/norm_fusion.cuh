@@ -26,12 +26,11 @@ enum class IndexEnum : int {
 /**
  * \brief Host-side shape and layout checker for parameter tensors.
  */
-template <typename T>
 struct Matcher {
   SymbolicSize B_ = {"B"}, S_ = {"S"}, F_ = {"F"}, D_ = {"D"};
   bool has_value_F = false;
 
-  template <IndexEnum index_enum>
+  template <typename T, IndexEnum index_enum>
   void match(const tvm::ffi::TensorView& tensor) {
     if constexpr (index_enum == IndexEnum::NotATensor) {
       // No check

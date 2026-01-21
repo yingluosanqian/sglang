@@ -15,7 +15,6 @@ from sglang.multimodal_gen.runtime.layers.layernorm import (
     ScaleResidualLayerNormScaleShift,
     ScaleResidualRMSNormScaleShift,
 )
-
 if is_in_ci():
     B_RANGE, S_RANGE, D_RANGE = [1], [128], [1024]
 else:
@@ -42,6 +41,7 @@ def preprocess_layer(layer, affine: bool, D: int, DTYPE: torch.dtype):
             layer.norm.weight.copy_(weight)
             if hasattr(layer.norm, "bias"):
                 layer.norm.bias.copy_(bias)
+    layer.requires_grad_(False)
     return layer.to(DEVICE)
 
 
@@ -122,10 +122,10 @@ def bench_fused_scale_residual_norm_scale_shift(
 
 
 if __name__ == "__main__":
-    print(f"\n{'='*80}")
-    print("Benchmark: fused_norm_scale_shift")
-    print(f"{'='*80}\n")
-    bench_fused_norm_scale_shift.run(print_data=True)
+    # print(f"\n{'='*80}")
+    # print("Benchmark: fused_norm_scale_shift")
+    # print(f"{'='*80}\n")
+    # bench_fused_norm_scale_shift.run(print_data=True)
 
     print(f"\n{'='*80}")
     print("Benchmark: fused_scale_residual_norm_scale_shift")
